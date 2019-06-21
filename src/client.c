@@ -45,9 +45,23 @@ urlinfo_t *parse_url(char *url)
     6. Overwrite the colon with a '\0' so that we are just left with the hostname.
   */
 
-  ///////////////////
+ ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
+  char *first_backslash = strchr(hostname, '/'); // Use strchr to find the first slash in the URL (this is assuming there is no http:// or https:// in the URL).
+  path = first_backslash + 1; // Set the path pointer to 1 character after the spot returned by strchr.
+  *first_backslash = '\0'; // Overwrite the slash with a '\0' so that we are no longer considering anything after the slash.
+
+  char *first_colon = strchr(hostname, ':'); // Use strchr to find the first colon in the URL.
+  port = first_colon + 1; // Set the port pointer to 1 character after the spot returned by strchr.
+  *first_colon = '\0'; // Overwrite the colon with a '\0' so that we are just left with the hostname.
+
+  // strchr() is a predefined function used for finding occurrence of a character in a string. 
+  // It is present in cstring header file. 
+
+  urlinfo->hostname = hostname;
+  urlinfo->port = port;
+  urlinfo->path = path;
 
   return urlinfo;
 }
@@ -71,8 +85,28 @@ int send_request(int fd, char *hostname, char *port, char *path)
   ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
+int request_length = snprintf(
+  request, 
+  max_request_size,
+  "GET /%s HTTP/1.1\n"
+  "Host: %s:%s\n"
+  "Connection: close\n"
+  "\n",
 
-  return 0;
+  path, 
+  hostname, 
+  port
+  );
+
+  // Send it all!
+  // Send the request
+  rv = send(fd, request, request_length, 0);
+
+    if (rv < 0) {
+        perror("send");
+    }
+
+    return rv;
 }
 
 int main(int argc, char *argv[])
@@ -96,6 +130,26 @@ int main(int argc, char *argv[])
   ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
+
+  urlinfo_t *urlinfo= malloc (sizeof(urlinfo_t));
+  urlinfo = parse_url(argv[1]); // 1. Parse the input URL using parse_url from above in client.c
+
+  sockfd = get_socket(urlinfo->hostname, urlinfo->port); // 2. Initialize a socket by calling the `get_socket` function from lib.c
+  // call the `get_socket()` function in order to get a socket that you can then
+  // send and receive data from using the `send` and `recv` system calls. 
+  // sockfd is the socket descriptor in lib.c
+
+  send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path); // 3. Call `send_request` to construct the request and send it
+  // url information
+  
+  while((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0) { // 4. Call `recv` in a loop until there is no more data to receive from the server.
+    fprintf(stdout, "%s\n", buf); // Print the received response to stdout.
+  }
+  // Stdout, also known as standard output, is the default file descriptor 
+  // where a process can write output.
+  
+  free(urlinfo); // Clean up any allocated memory and open file descriptors.
+  close(sockfd); // Close the open file descriptors.
 
   return 0;
 }
